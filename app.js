@@ -106,6 +106,7 @@ async function saveToStorage() {
   } catch (e) {
     console.error('Error saving to server:', e);
     alert('⚠️ Erreur de sauvegarde vers le serveur ! Vérifiez la connexion.');
+    throw e; // Re-throw to allow callers to handle failure
   }
 }
 
@@ -457,9 +458,20 @@ function initTextGeneration() {
         proposals = generateSimulatedTexts(tone);
       }
     } else {
-      // Fallback Simulation
-      console.log('No valid API Key, using simulation.');
-      proposals = generateSimulatedTexts(tone);
+      // Fallback Simulation (also used if server key exists but client doesn't know)
+      // Actually, if we use server proxy, we don't need client key.
+      // But we check hasApiKey flag from server settings.
+      if (AppState.settings.hasApiKey) {
+        try {
+          proposals = await generateRealTexts(tone);
+        } catch (e) {
+          console.error('Server API Error:', e);
+          proposals = generateSimulatedTexts(tone);
+        }
+      } else {
+        console.log('No valid API Key (Client or Server), using simulation.');
+        proposals = generateSimulatedTexts(tone);
+      }
     }
 
     // Reset UI
@@ -654,7 +666,8 @@ function initPublication() {
   });
 }
 
-function handlePublish() {
+// CORRECTED ASYNC PUBLISH LOGIC
+async function handlePublish() {
   const post = AppState.currentPost;
 
   // Validation
@@ -676,7 +689,9 @@ function handlePublish() {
     tone: post.tone,
     publicationOption: post.publicationOption,
     scheduledDate: post.scheduledDate || getNextScheduledDate(),
-    status: post.publicationOption === 'now' ? 'published' : 'scheduled',
+    // Important: status is scheduled by default for safety.
+    // If 'now' is selected, we try to publish, and verify success before changing status.
+    status: 'scheduled',
     createdAt: new Date().toISOString(),
     brightness: post.brightness,
     contrast: post.contrast,
@@ -685,23 +700,41 @@ function handlePublish() {
     originalImageData: post.imageData
   };
 
-  // Handle different publication options
+  // 1. Add to local state (Queued)
+  AppState.posts.push(newPost);
+  AppState.posts.sort((a, b) => new Date(a.scheduledDate) - new Date(b.scheduledDate));
+
+  // 2. Save to Server DB (Wait for confirmation)
+  // This ensures the server "knows" about the post before we ask it to publish it by ID.
+  try {
+    await saveToStorage();
+  } catch (e) {
+    console.error('Save failed:', e);
+    // We don't return here because maybe it saved but network flaked? 
+    // Safest is to alert and maybe stop.
+    return;
+  }
+
+  // 3. Handle Immediate Action
   if (post.publicationOption === 'now') {
-    simulateInstagramPublish(newPost);
-    alert('✓ Post publié (simulé)');
+    // REAL PUBLISH via Server endpoint
+    alert('⏳ Envoi en cours au serveur...');
 
-    // Reset form
+    // Call the webhook function (which uses the server endpoint)
+    await sendToWebhook(newPost.id);
+
+    // Reset form after attempt (sendToWebhook handles success alerts)
     resetPostForm();
+
+    // Mark image as used if publish was requested (optimistic)
+    if (!AppState.usedImages.includes(post.imageName)) {
+      AppState.usedImages.push(post.imageName);
+      saveToStorage();
+    }
+
   } else {
-    // Add to queue
-    AppState.posts.push(newPost);
-    AppState.posts.sort((a, b) => new Date(a.scheduledDate) - new Date(b.scheduledDate));
-    saveToStorage();
-
-    // Show alert
+    // Just Queue
     alert('✓ Post ajouté à la file de publication');
-
-    // Go to queue
     switchScreen('file');
     document.querySelectorAll('.sidebar-menu button').forEach(btn => {
       btn.classList.remove('active');
@@ -709,14 +742,6 @@ function handlePublish() {
         btn.classList.add('active');
       }
     });
-
-    // Don't reset form - user will click "Nouveau post" when ready
-  }
-
-  // Mark image as used if published
-  if (post.publicationOption === 'now' && !AppState.usedImages.includes(post.imageName)) {
-    AppState.usedImages.push(post.imageName);
-    saveToStorage();
   }
 }
 
@@ -731,13 +756,6 @@ function getNextScheduledDate() {
   tomorrow.setMinutes(parseInt(settings.timeStart.split(':')[1]));
 
   return tomorrow.toISOString();
-}
-
-function simulateInstagramPublish(post) {
-  console.log('📸 SIMULATION: Publication Instagram');
-  console.log('Texte:', post.text);
-  console.log('Image:', post.imageName);
-  console.log('Date:', new Date().toLocaleString('fr-FR'));
 }
 
 function resetPostForm() {
@@ -895,79 +913,11 @@ function populatePostForm(post) {
   if (post.text) {
     document.getElementById('tone-of-voice').value = post.tone || '';
 
-    // Setup text edit UI
     const textEdit = document.getElementById('text-edit');
     const proposals = document.getElementById('text-proposals');
 
     textEdit.classList.remove('hidden');
     proposals.classList.add('hidden');
-
-    const textArea = document.querySelector('#text-edit textarea');
-    if (textArea) {
-      textArea.value = post.text;
-    }
-
-    document.getElementById('text-next-btn').disabled = false;
-    markTabCompleted('texte');
-  }
-
-  // Switch to first tab
-  switchTab('image');
-}
-
-function populatePostForm(post) {
-  // Restore image
-  if (post.imageData || post.originalImageData) {
-    const imgSrc = post.originalImageData || post.imageData;
-    const img = new Image();
-    img.onload = () => {
-      AppState.currentPost.image = img;
-
-      const canvas = document.getElementById('image-canvas');
-      const size = 400;
-      canvas.width = size;
-      canvas.height = size;
-
-      // Show controls
-      document.getElementById('image-preview').classList.add('hidden');
-      document.getElementById('image-controls').classList.remove('hidden');
-      document.getElementById('image-next-btn').disabled = false;
-
-      // Restore filters
-      document.getElementById('brightness').value = post.brightness || 0;
-      document.getElementById('contrast').value = post.contrast || 0;
-      document.getElementById('brightness-value').textContent = post.brightness || 0;
-      document.getElementById('contrast-value').textContent = post.contrast || 0;
-
-      // Draw with saved offsets
-      drawImageOnCanvas();
-      applyImageFilters();
-
-      // Mark tab as completed
-      markTabCompleted('image');
-    };
-    img.src = imgSrc;
-  }
-
-  // Restore text
-  if (post.text) {
-    document.getElementById('tone-of-voice').value = post.tone || '';
-    // If text was generated/edited, put it in the final text area
-    // Note: We might need to handle the 'proposals' state if meaningful, 
-    // but putting it in final-text is safer for editing.
-    // Ensure the textarea exists or use the div logic? 
-    // Checking earlier code: 'text-edit' div contains textarea?
-    // Let's check view_file. Assuming standard structure:
-    const textEdit = document.getElementById('text-edit');
-    const proposals = document.getElementById('text-proposals');
-
-    // We skip generation step and go straight to edit
-    textEdit.classList.remove('hidden');
-    proposals.classList.add('hidden');
-
-    // We need to inject the text into the textarea if it exists, 
-    // or create the edit UI if it's dynamic.
-    // Based on app.js, we usually select a proposal which populates the textarea.
 
     const textArea = document.querySelector('#text-edit textarea');
     if (textArea) {
@@ -1004,9 +954,6 @@ window.togglePausePost = function (postId) {
 
 window.deletePost = function (postId) {
   console.log('Request to delete post. ID:', postId);
-
-  // DIRECT DELETE (Debugging confirm issue)
-  // if (!confirm('Voulez-vous vraiment supprimer ce post ?')) return;
 
   const initialCount = AppState.posts.length;
   console.log('Initial count:', initialCount);
@@ -1079,11 +1026,6 @@ function renderPostList() {
   });
 }
 
-
-
-// ================================================
-// SETTINGS
-// ================================================
 // ================================================
 // SETTINGS
 // ================================================
@@ -1141,6 +1083,7 @@ function populateSettings() {
     keyInput.disabled = true; // Still disabled as we don't want input here
   }
 
+  // Update webhook UI to reflect correct status (server managed)
   if (AppState.settings.hasWebhook) {
     webhookInput.value = '•••••••••••••••• Configuré sur Serveur';
     webhookInput.disabled = true;
@@ -1153,17 +1096,14 @@ function populateSettings() {
 }
 
 // ================================================
-// WEBHOOK INTEGRATION
+// WEBHOOK INTEGRATION (SERVER SIDE)
 // ================================================
 async function sendToWebhook(postId) {
   const post = AppState.posts.find(p => p.id === postId);
   if (!post) return;
 
-  const webhookUrl = AppState.settings.webhookUrl;
-  if (!webhookUrl || !webhookUrl.startsWith('http')) {
-    alert('Veuillez configurer une URL de Webhook valide dans les paramètres.');
-    return;
-  }
+  // REMOVED CHECK FOR AppState.settings.webhookUrl 
+  // because we now use the server endpoint.
 
   const btn = document.querySelector(`button[data-sync-id="${postId}"]`);
   if (btn) {
@@ -1172,34 +1112,33 @@ async function sendToWebhook(postId) {
   }
 
   try {
-    const payload = {
-      id: post.id,
-      text: post.text,
-      status: post.status,
-      scheduled_date: post.scheduledDate,
-      image_name: post.imageName,
-      // Send only the base64 part, stripping the header if present
-      image_data: post.imageData.includes(',') ? post.imageData.split(',')[1] : post.imageData,
-      tone_used: post.tone
-    };
+    // We do NOT send the payload here.
+    // We call the server endpoint: POST /api/publish/:id
+    // The server reads the DB, gets the secrets, and sends the payload.
 
-    console.log('Sending to Webhook:', webhookUrl); // DEBUG LOG
+    console.log('Requesting Server Publish for Post ID:', postId);
 
-    const response = await fetch(webhookUrl, {
+    const response = await fetch(`/api/publish/${postId}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      headers: { 'Content-Type': 'application/json' }
     });
 
     if (response.ok) {
-      alert('✅ Post envoyé avec succès au Webhook !');
-      // Visual feedback
-      if (btn) btn.textContent = 'Sync OK';
+      const result = await response.json();
+      if (result.success) {
+        alert('✅ Post envoyé avec succès au Webhook (via Serveur) !');
+        if (btn) btn.textContent = 'Sync OK';
+        // Reload storage to get updated status ('published')
+        loadFromStorage();
+      } else {
+        throw new Error('Server reported failure');
+      }
     } else {
-      throw new Error(`Erreur ${response.status}: ${response.statusText}`);
+      const errText = await response.text();
+      throw new Error(`Erreur Serveur ${response.status}: ${errText}`);
     }
   } catch (error) {
-    console.error('Webhook Error:', error);
+    console.error('Publish Error:', error);
     alert('Erreur lors de l\'envoi : ' + error.message);
     if (btn) btn.textContent = 'Erreur';
   } finally {
