@@ -504,7 +504,7 @@ function initTextGeneration() {
   });
 }
 
-// Real API Call
+// Real API Call (Via Proxy)
 async function generateRealTexts(tone) {
   const canvas = document.getElementById('image-canvas');
   const base64Image = canvas.toDataURL('image/jpeg', 0.7); // Compress slightly for speed
@@ -522,30 +522,22 @@ IMPORTANT :
 
 FORMAT DE SORTIE : Un tableau JSON de 3 chaînes. Exemple valide : ["Caption...\\n\\n#tag1", "Caption...", "Caption..."].`;
 
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+  console.log('Generating text via Server Proxy...');
+
+  const response = await fetch('/api/generate-text', {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${AppState.settings.apiKey}`
+      'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      model: "gpt-4o",
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: prompt },
-            { type: "image_url", image_url: { url: base64Image } }
-          ]
-        }
-      ],
-      max_tokens: 1000
+      prompt: prompt,
+      imageUrl: base64Image
     })
   });
 
   if (!response.ok) {
     const err = await response.json();
-    throw new Error(err.error?.message || 'Unknown API Error');
+    throw new Error(err.error || 'Unknown API Error via Proxy');
   }
 
   const data = await response.json();
@@ -1092,22 +1084,34 @@ function renderPostList() {
 // ================================================
 // SETTINGS
 // ================================================
+// ================================================
+// SETTINGS
+// ================================================
 function initSettings() {
   const saveBtn = document.getElementById('save-settings-btn');
   const connectBtn = document.getElementById('connect-instagram-btn');
 
   saveBtn.addEventListener('click', () => {
     // Save settings
+    // Note: We don't send apiKey/webhookUrl from here anymore.
+    // They are managed via .env on server.
+
+    // Check if user is trying to type keys in the old inputs
+    const keyInput = document.getElementById('openai-key');
+    const webhookInput = document.getElementById('webhook-url');
+
+    if ((keyInput.value && !keyInput.disabled) || (webhookInput.value && !webhookInput.disabled)) {
+      alert('Attention: Pour la sécurité, les clés doivent être mises dans le fichier .env sur le serveur.\n\nLes valeurs saisies ici ne seront pas sauvegardées.');
+    }
+
     AppState.settings.instagramAccount = document.getElementById('instagram-account').value;
     AppState.settings.frequency = document.getElementById('frequency').value;
     AppState.settings.timeStart = document.getElementById('time-start').value;
     AppState.settings.timeEnd = document.getElementById('time-end').value;
     AppState.settings.defaultTone = document.getElementById('default-tone').value;
-    AppState.settings.apiKey = document.getElementById('openai-key').value;
-    AppState.settings.webhookUrl = document.getElementById('webhook-url').value;
 
     saveToStorage();
-    alert('✓ Paramètres enregistrés');
+    alert('✓ Paramètres enregistrés (Côté Serveur & GitHub)');
   });
 
   connectBtn.addEventListener('click', () => {
@@ -1122,9 +1126,30 @@ function populateSettings() {
   document.getElementById('time-start').value = AppState.settings.timeStart || '09:00';
   document.getElementById('time-end').value = AppState.settings.timeEnd || '18:00';
   document.getElementById('default-tone').value = AppState.settings.defaultTone || '';
-  document.getElementById('default-tone').value = AppState.settings.defaultTone || '';
-  document.getElementById('openai-key').value = AppState.settings.apiKey || '';
-  document.getElementById('webhook-url').value = AppState.settings.webhookUrl || '';
+
+  // UX: Show status of keys
+  const keyInput = document.getElementById('openai-key');
+  const webhookInput = document.getElementById('webhook-url');
+
+  if (AppState.settings.hasApiKey) {
+    keyInput.value = '•••••••••••••••• Configuré sur Serveur';
+    keyInput.disabled = true;
+    keyInput.style.backgroundColor = '#e0ffd0'; // Success green-ish
+  } else {
+    keyInput.value = '';
+    keyInput.placeholder = 'Manquant ! Configurez .env sur NUC';
+    keyInput.disabled = true; // Still disabled as we don't want input here
+  }
+
+  if (AppState.settings.hasWebhook) {
+    webhookInput.value = '•••••••••••••••• Configuré sur Serveur';
+    webhookInput.disabled = true;
+    webhookInput.style.backgroundColor = '#e0ffd0';
+  } else {
+    webhookInput.value = '';
+    webhookInput.placeholder = 'Manquant ! Configurez .env sur NUC';
+    webhookInput.disabled = true;
+  }
 }
 
 // ================================================
