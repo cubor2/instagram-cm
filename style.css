@@ -1,0 +1,315 @@
+/* Minimal styles to support App Logic (Hidden/Active states) */
+
+/* Utility */
+.hidden {
+  display: none !important;
+}
+
+/* Screens */
+.screen {
+  display: none;
+}
+
+.screen.active {
+  display: block;
+  animation: fadeIn 0.2s;
+}
+
+/* Tabs */
+.tab-content {
+  display: none;
+  padding-top: 20px;
+}
+
+.tab-content.active {
+  display: block;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+/* =========================================
+   SYSTEM.CSS PATCHES / OVERRIDES
+   ========================================= */
+
+/* Fix broken buttons (replace missing SVG border-image) */
+/* Global Input Overrides (Prevent black background on focus) */
+input:focus,
+textarea:focus,
+select:focus {
+  background-color: #fff !important;
+  color: #000 !important;
+  box-shadow: 1px 1px 0 #000 !important;
+  /* Keep focus visibility */
+  outline: none !important;
+}
+
+.btn,
+.btn-default {
+  border: 1px solid #000 !important;
+  border-radius: 6px !important;
+  border-image: none !important;
+  /* Disable missing SVG */
+  background: #fff;
+  box-shadow: 1px 1px 0 #000;
+  /* Subtle shadow */
+  min-height: 24px;
+  padding: 4px 12px;
+  font-family: inherit;
+  font-size: 14px;
+  position: relative;
+  z-index: 10;
+  cursor: pointer;
+}
+
+.btn:hover {
+  background: #eee;
+  box-shadow: 2px 2px 0 #000;
+  transform: translateY(-1px);
+}
+
+.btn:active,
+.btn.active {
+  background: #000 !important;
+  color: #fff !important;
+  box-shadow: inset 1px 1px 0 #333;
+  transform: translateY(1px);
+}
+
+.btn[disabled] {
+  /* Restore System 6 design structure */
+  border: 1px solid #999 !important;
+  border-radius: 6px !important;
+  background: #fff !important;
+  box-shadow: 1px 1px 0 #ccc !important;
+  /* Lighter shadow for disabled */
+  color: #ccc !important;
+  /* Grey text */
+
+  /* Interaction */
+  pointer-events: none;
+
+  /* Sizing - enforce exact match with .btn */
+  min-height: 24px;
+  padding: 4px 12px;
+  box-sizing: border-box;
+  line-height: normal;
+  height: auto;
+  font-size: 14px;
+}
+
+/* Sidebar specific */
+/* Sidebar specific */
+.sidebar-btn {
+  /* Restore normal button aesthetics */
+  background: #fff !important;
+  border: 1px solid #000 !important;
+  box-shadow: 1px 1px 0 #000 !important;
+  border-radius: 6px !important;
+  position: relative;
+  outline: none !important;
+  width: 100%;
+  text-align: left;
+  margin-bottom: 0;
+}
+
+/* Kill system.css hover effects on parent li/ul */
+ul[role="menu-bar"]>[role="menu-item"]:hover,
+ul[role="menu-bar"]>[role="menu-item"]:focus-within {
+  background: transparent !important;
+  color: inherit !important;
+  outline: none !important;
+}
+
+/* Active state */
+.sidebar-btn.active {
+  background: #000 !important;
+  color: #fff !important;
+  border-radius: 6px !important;
+  /* Match enabled buttons */
+  box-shadow: inset 1px 1px 0 #333 !important;
+  /* Inset shadow for active */
+  border-color: #000 !important;
+}
+
+/* Tab specific */
+.tab-btn {
+  border-bottom: none !important;
+  border-radius: 6px 6px 0 0 !important;
+  margin-right: 4px;
+}
+
+.tab-btn.active {
+  background: #000 !important;
+  color: #fff !important;
+  border-bottom: 1px solid #000 !important;
+  /* Merge with content */
+  height: calc(100% + 1px);
+}
+
+/* =========================================
+   QUEUE LIST VIEW (Horizontal)
+   ========================================= */
+
+.post-item {
+  border-bottom: 1px solid #000;
+  padding: 10px 0;
+}
+
+.post-item:last-child {
+  border-bottom: none;
+}
+
+.post-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 15px;
+}
+
+.post-thumb {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border: 1px solid #000;
+  background: #eee;
+  flex-shrink: 0;
+}
+
+.post-details {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 80px;
+}
+
+.post-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-weight: 500;
+}
+
+.post-meta {
+  font-size: 12px;
+  color: #555;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border: 1px solid #000;
+  border-radius: 4px;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.status-badge.status-paused {
+  background: #000;
+  color: #fff;
+}
+
+.post-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-left: auto;
+  align-items: flex-end;
+}
+
+.post-actions .btn {
+  font-size: 12px;
+  padding: 2px 8px;
+  min-height: 20px;
+  width: 80px;
+}
+
+/* Text proposals */
+.text-proposal {
+  border: 1px solid #000;
+  border-radius: 4px;
+  padding: 10px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  background: #fff;
+  /* Default to white */
+  color: #000;
+  box-shadow: 2px 2px 0 #ccc;
+  transition: background 0.1s;
+}
+
+.text-proposal:hover {
+  background: #e0e0e0;
+  /* Grey on hover */
+  color: #000;
+  box-shadow: 2px 2px 0 #000;
+}
+
+.text-proposal.selected {
+  background: #ccc;
+  /* Solid grey on selection */
+  color: #000;
+  border: 2px solid #000;
+  /* Bold border for selection */
+  box-shadow: 2px 2px 0 #000;
+}
+
+/* Vintage Range Slider */
+input[type=range] {
+  -webkit-appearance: none;
+  width: 100%;
+  background: transparent;
+  margin: 10px 0;
+  border: none !important;
+  /* Fix white border artifact */
+  padding: 0 !important;
+  /* Fix spacing artifacts */
+}
+
+input[type=range]:focus {
+  outline: none;
+}
+
+/* Track */
+input[type=range]::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 2px;
+  cursor: pointer;
+  background: #000;
+  border: none;
+}
+
+/* Thumb */
+input[type=range]::-webkit-slider-thumb {
+  border: 1px solid #000;
+  height: 16px;
+  width: 10px;
+  background: #fff;
+  cursor: pointer;
+  -webkit-appearance: none;
+  margin-top: -7px;
+  /* (height/2 - track_height/2) * -1 */
+  box-shadow: 1px 1px 0 #000;
+}
+
+input[type=range]:focus::-webkit-slider-thumb {
+  background: #000;
+  /* Optional: make thumb black on focus */
+  border-color: #fff;
+}

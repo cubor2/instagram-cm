@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+.npm/
+
+# Database (Do not commit production data)
+db.json
+
+# Environment variables
+.env
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Logs
+npm-debug.log*
+logs/
+*.log
