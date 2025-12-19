@@ -156,13 +156,22 @@ async function publishPostLogic(post, db) {
         tone_used: post.tone
     };
 
+    console.log(`Sending to Webhook: ${webhookUrl.substring(0, 20)}...`);
+
+    // Debug: Log payload size
+    console.log(`Payload size: ${JSON.stringify(payload).length} bytes`);
+
     const response = await fetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
     });
 
-    if (!response.ok) throw new Error(`Webhook failed: ${response.statusText}`);
+    const responseText = await response.text();
+    console.log(`Webhook Response Status: ${response.status}`);
+    console.log(`Webhook Response Body: ${responseText}`);
+
+    if (!response.ok) throw new Error(`Webhook failed: ${response.status} - ${responseText}`);
 
     // Success: Update post local status
     post.status = 'published';
