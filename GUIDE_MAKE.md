@@ -30,7 +30,7 @@ Votre serveur envoie l'image en "Base64" (du texte). Instagram veut un fichier.
     
     **Approche Robuste (Google Drive) :**
     *   Module 2 : **Google Drive** -> **Upload a File**.
-        *   Data : `toBinary(image_data)` (Formule Make).
+        *   Data : `toBinary(image_data; "base64")` (Formule Make - Important : ajoutez le ; "base64").
         *   Name : `image_name`.
     *   Module 3 : **Instagram for Business** -> **Create a Photo Post**.
         *   Photo : Sélectionnez le fichier venant de Google Drive.

@@ -436,6 +436,24 @@ function initTextGeneration() {
   const finalText = document.getElementById('final-text');
   const nextBtn = document.getElementById('text-next-btn');
 
+  // [NEW] Manual Write Button Injection
+  const manualBtn = document.createElement('button');
+  manualBtn.textContent = 'Écrire un texte (Manuel)';
+  manualBtn.className = 'btn-secondary'; // Assuming this class exists or similar
+  manualBtn.style.marginLeft = '10px';
+  manualBtn.style.marginTop = '10px';
+  generateBtn.parentNode.insertBefore(manualBtn, generateBtn.nextSibling);
+
+  manualBtn.addEventListener('click', () => {
+    proposalsContainer.innerHTML = '';
+    proposalsContainer.classList.add('hidden');
+    textEdit.classList.remove('hidden');
+    finalText.value = ''; // Clean start
+    finalText.placeholder = 'Rédigez votre légende ici...';
+    AppState.currentPost.text = '';
+    nextBtn.disabled = false;
+  });
+
   generateBtn.addEventListener('click', async () => {
     const tone = toneInput.value || 'neutre';
     AppState.currentPost.tone = tone;

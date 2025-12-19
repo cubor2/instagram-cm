@@ -158,8 +158,9 @@ async function publishPostLogic(post, db) {
 
     console.log(`Sending to Webhook: ${webhookUrl.substring(0, 20)}...`);
 
-    // Debug: Log payload size
+    // Debug: Log payload size and snippet
     console.log(`Payload size: ${JSON.stringify(payload).length} bytes`);
+    console.log(`Image Snippet (Start): ${payload.image_data.substring(0, 50)}...`);
 
     const response = await fetch(webhookUrl, {
         method: 'POST',
