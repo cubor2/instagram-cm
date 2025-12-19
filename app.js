@@ -436,21 +436,23 @@ function initTextGeneration() {
   const finalText = document.getElementById('final-text');
   const nextBtn = document.getElementById('text-next-btn');
 
-  // [NEW] Manual Write Button Injection
+  // [NEW] Manual Write Button Injection (Strict Style Match)
   const manualBtn = document.createElement('button');
   manualBtn.textContent = 'Écrire un texte (Manuel)';
-  manualBtn.className = 'btn-secondary'; // Assuming this class exists or similar
-  manualBtn.style.marginLeft = '10px';
-  manualBtn.style.marginTop = '10px';
+  manualBtn.className = 'btn'; // Same class as generate-text-btn
+  manualBtn.style.marginLeft = '10px'; // Just a little spacing
+
   generateBtn.parentNode.insertBefore(manualBtn, generateBtn.nextSibling);
 
   manualBtn.addEventListener('click', () => {
     proposalsContainer.innerHTML = '';
     proposalsContainer.classList.add('hidden');
     textEdit.classList.remove('hidden');
-    finalText.value = ''; // Clean start
-    finalText.placeholder = 'Rédigez votre légende ici...';
-    AppState.currentPost.text = '';
+
+    // Smart reset
+    finalText.value = AppState.currentPost.text || '';
+    if (!finalText.value) finalText.placeholder = 'Rédigez votre légende ici...';
+
     nextBtn.disabled = false;
   });
 
