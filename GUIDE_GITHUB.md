@@ -4,7 +4,12 @@
 ✅ Votre projet est connecté à : `https://github.com/cubor2/instagram-cm`
 
 ## 2. Déploiement initial sur le NUC
-1.  **Clonez le projet** :
+1.  **Pré-requis sur le NUC** :
+    ```bash
+    sudo apt update
+    sudo apt install git
+    ```
+2.  **Clonez le projet** :
     ```bash
     git clone https://github.com/cubor2/instagram-cm.git ~/Documents/instagram-cm
     ```

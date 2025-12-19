@@ -140,16 +140,66 @@ app.post('/api/generate-text', async (req, res) => {
 });
 
 // ==========================================
+// SHARED PUBLISH LOGIC
+// ==========================================
+async function publishPostLogic(post, db) {
+    const webhookUrl = process.env.WEBHOOK_URL;
+    if (!webhookUrl) throw new Error('Webhook URL not configured on server.');
+
+    const payload = {
+        id: post.id,
+        text: post.text,
+        status: 'published_by_server',
+        scheduled_date: post.scheduledDate,
+        image_name: post.imageName,
+        image_data: post.imageData.includes(',') ? post.imageData.split(',')[1] : post.imageData,
+        tone_used: post.tone
+    };
+
+    const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) throw new Error(`Webhook failed: ${response.statusText}`);
+
+    // Success: Update post local status
+    post.status = 'published';
+    if (!db.usedImages) db.usedImages = [];
+    if (!db.usedImages.includes(post.imageName)) db.usedImages.push(post.imageName);
+
+    return true;
+}
+
+// Manual Publish Endpoint
+app.post('/api/publish/:id', async (req, res) => {
+    const postId = parseInt(req.params.id);
+    const db = readJSON(DB_FILE);
+    const post = db.posts.find(p => p.id === postId);
+
+    if (!post) {
+        return res.status(404).json({ error: 'Post not found' });
+    }
+
+    try {
+        console.log(`Manual publish requested for Post ID ${postId}...`);
+        await publishPostLogic(post, db);
+        writeJSON(DB_FILE, db); // Save updated status
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Manual Publish Error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ==========================================
 // AUTOMATION CRON (Run every minute)
 // ==========================================
 setInterval(async () => {
     // console.log('--- Cron Check ---'); 
-    const db = readJSON(DB_FILE);
-    const settings = readJSON(SETTINGS_FILE);
-    const webhookUrl = process.env.WEBHOOK_URL;
+    const db = readJSON(DB_FILE); // Always reload DB to get latest status
     const now = new Date();
-
-    if (!db.posts) return;
 
     const postsToPublish = db.posts.filter(post => {
         return post.status === 'scheduled' && new Date(post.scheduledDate) <= now;
@@ -157,45 +207,14 @@ setInterval(async () => {
 
     if (postsToPublish.length === 0) return;
 
-    console.log(`Found ${postsToPublish.length} posts to publish.`);
+    console.log(`Found ${postsToPublish.length} posts to publish via Cron.`);
     let dbChanged = false;
 
     for (const post of postsToPublish) {
         try {
-            console.log(`Publishing post ID ${post.id}...`);
-
-            if (webhookUrl) {
-                const payload = {
-                    id: post.id,
-                    text: post.text,
-                    status: 'published_by_server',
-                    scheduled_date: post.scheduledDate,
-                    image_name: post.imageName,
-                    image_data: post.imageData.includes(',') ? post.imageData.split(',')[1] : post.imageData,
-                    tone_used: post.tone
-                };
-
-                const response = await fetch(webhookUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                if (response.ok) {
-                    post.status = 'published';
-                    dbChanged = true;
-                    // Mark image used...
-                    if (!db.usedImages) db.usedImages = [];
-                    if (!db.usedImages.includes(post.imageName)) db.usedImages.push(post.imageName);
-                } else {
-                    console.error('Webhook failed');
-                }
-            } else {
-                console.warn('No Webhook URL in .env');
-                // Optionally mark published if simulation
-                post.status = 'published';
-                dbChanged = true;
-            }
+            console.log(`Cron Publishing post ID ${post.id}...`);
+            await publishPostLogic(post, db);
+            dbChanged = true;
         } catch (err) {
             console.error('Automation Error:', err);
         }
@@ -203,7 +222,7 @@ setInterval(async () => {
 
     if (dbChanged) {
         writeJSON(DB_FILE, db);
-        console.log('Database updated.');
+        console.log('Database updated by Cron.');
     }
 }, 60000); // Check every 60 seconds
 

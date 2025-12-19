@@ -91,3 +91,24 @@ Si vous modifiez le code sur votre PC principal et que vous voulez le mettre sur
     ```bash
     pm2 restart instagram-server
     ```
+
+## 8. Contrôle à distance (SSH) - **Pour gagner du temps**
+Pour éviter de brancher un écran/clavier sur le NUC à chaque fois, vous pouvez le contrôler depuis votre PC Windows.
+
+### Sur le NUC (À faire une fois)
+Installez le serveur SSH :
+```bash
+sudo apt update
+sudo apt install openssh-server -y
+sudo systemctl enable ssh
+sudo systemctl start ssh
+```
+
+### Sur votre PC Windows
+1.  Ouvrez PowerShell.
+2.  Tapez : `ssh votre_nom_utilisateur@192.168.1.XX`
+    (Remplacez par le vrai nom du NUC et sa vraie IP).
+3.  Tapez votre mot de passe (il ne s'affiche pas quand on tape, c'est normal).
+4.  Vous êtes connecté !
+
+Vous pouvez désormais faire vos `git pull` ou `pm2 restart` directement depuis votre canapé.
